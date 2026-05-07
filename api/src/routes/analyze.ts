@@ -43,15 +43,18 @@ analyzeRouter.post("/analyze", async (req, res) => {
     return;
   }
 
+  console.log(`[analyze] ASIN=${asin} → calling SerpApi`);
   let reviews;
   let product;
   try {
     const data = await fetchAmazonProductData(asin, serpKey);
     reviews = data.reviews;
     product = data.product;
+    console.log(`[analyze] SerpApi OK — ${reviews.length} review(s), product title: ${product.title ?? "(none)"}`);
   } catch (e) {
     const msg = e instanceof SerpApiError ? e.message : String(e);
     const status = e instanceof SerpApiError && e.status ? e.status : 502;
+    console.error(`[analyze] SerpApi error: ${msg}`);
     res.status(status >= 400 && status < 600 ? status : 502).json({ error: "SerpApi failed", detail: msg });
     return;
   }

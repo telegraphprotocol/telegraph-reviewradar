@@ -68,10 +68,14 @@ export async function fetchAmazonProductData(
   url.searchParams.set("asin", asin);
   url.searchParams.set("api_key", apiKey);
 
+  console.log(`[serpapi] GET ${url.toString().replace(apiKey, "***")}`);
   const res = await fetch(url);
+  console.log(`[serpapi] HTTP ${res.status}`);
   const data = (await res.json()) as SerpJson;
+  console.log(`[serpapi] top-level keys: ${Object.keys(data).join(", ")}`);
 
   if (typeof data.error === "string" && data.error.length > 0) {
+    console.error(`[serpapi] API error: ${data.error}`);
     throw new SerpApiError(data.error, res.ok ? undefined : res.status);
   }
 
@@ -85,6 +89,12 @@ export async function fetchAmazonProductData(
   const otherCountries = Array.isArray(data.reviews_information?.other_countries_reviews)
     ? data.reviews_information.other_countries_reviews
     : [];
+
+  console.log(`[serpapi] authors_reviews=${authors.length}, other_countries_reviews=${otherCountries.length}`);
+  if (authors.length === 0 && otherCountries.length === 0) {
+    console.warn(`[serpapi] WARNING: no reviews found. reviews_information keys: ${Object.keys(data.reviews_information ?? {}).join(", ") || "(field missing)"}`);
+    console.warn(`[serpapi] Full reviews_information:`, JSON.stringify(data.reviews_information, null, 2));
+  }
 
   return {
     reviews: [...authors, ...otherCountries],

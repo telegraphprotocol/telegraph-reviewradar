@@ -26,6 +26,7 @@ import {
   type AnalyzeSuccess,
 } from "./api";
 import "./App.css";
+import TerminalFeed from "./components/TerminalFeed";
 
 type UiState =
   | { kind: "idle" }
@@ -45,6 +46,7 @@ export default function App() {
   const [mouse, setMouse] = useState({ x: 50, y: 50 });
   const [url, setUrl] = useState("");
   const [state, setState] = useState<UiState>({ kind: "idle" });
+  const [terminalFinished, setTerminalFinished] = useState(false);
 
   useEffect(() => {
     const onMouseMove = (event: MouseEvent) => {
@@ -61,6 +63,7 @@ export default function App() {
     if (!productUrl) return;
 
     setState({ kind: "loading" });
+    setTerminalFinished(false);
     try {
       const res = await fetch(analyzeEndpoint(), {
         method: "POST",
@@ -76,6 +79,7 @@ export default function App() {
         body = null;
       }
 
+      console.log("[analyze] HTTP", res.status, "body:", body);
       if (res.ok && body && typeof body === "object" && "items" in body) {
         setState({ kind: "ok", data: body as AnalyzeSuccess });
         return;
@@ -190,15 +194,24 @@ export default function App() {
           </div>
         </section>
 
-        {state.kind === "ok" && state.data.warning ? (
+        {(state.kind === "loading" || state.kind === "ok" || state.kind === "err") ? (
+          <TerminalFeed
+            loading={state.kind === "loading"}
+            data={state.kind === "ok" ? state.data : null}
+            error={state.kind === "err" ? state.message : null}
+            onComplete={() => setTerminalFinished(true)}
+          />
+        ) : null}
+
+        {terminalFinished && state.kind === "ok" && state.data.warning ? (
           <div className="dash-banner warn glass">{state.data.warning}</div>
         ) : null}
 
-        {state.kind === "err" && state.warning ? (
+        {terminalFinished && state.kind === "err" && state.warning ? (
           <div className="dash-banner warn glass">{state.warning}</div>
         ) : null}
 
-        {state.kind === "err" ? (
+        {terminalFinished && state.kind === "err" ? (
           <div className="dash-banner err glass">
             <strong>{state.message}</strong>
             {state.detail ? <div style={{ marginTop: "0.4rem" }}>{state.detail}</div> : null}
@@ -210,11 +223,11 @@ export default function App() {
           </div>
         ) : null}
 
-        {state.kind === "err" && state.product && state.asin ? (
+        {terminalFinished && state.kind === "err" && state.product && state.asin ? (
           <ProductPreviewPanel product={state.product} asin={state.asin} />
         ) : null}
 
-        {state.kind === "ok" ? (
+        {terminalFinished && state.kind === "ok" ? (
           <>
             <div className="dash-meta">
               <span className="dash-asin-pill">{state.data.asin}</span>
@@ -234,7 +247,7 @@ export default function App() {
           </>
         ) : null}
 
-        {state.kind === "err" && state.partial && state.partial.length > 0 ? (
+        {terminalFinished && state.kind === "err" && state.partial && state.partial.length > 0 ? (
           <>
             <SignalSummary items={state.partial} />
             <p className="dash-section-label" style={{ marginTop: "1.5rem" }}>
